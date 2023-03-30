@@ -1,10 +1,12 @@
+using Mirror;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : NetworkBehaviour
 {
-    Camera camera;
+    [SerializeField]Transform camera;
     [Range(0.1f, 10f)] public float sensivity;
     [Range(0.1f ,1000f)] public float StandartSpeed,RotationSpeed;
     [Range(0.1f, 2000f)] public float JumpForce;
@@ -32,133 +34,142 @@ public class PlayerController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        PlayerState = States.Walk;
-        Cursor.lockState = CursorLockMode.Locked;
-        camera = Camera.main;
-        rb = GetComponent<Rigidbody>();
-        JumpsCount = MaxJumps;
-        RotID = 0f;
-        isRotating = false;
-        playerAnimator = GetComponent<Animator>();
+        if (isLocalPlayer)
+        {
+            PlayerState = States.Walk;
+            Cursor.lockState = CursorLockMode.Locked;
+
+            rb = GetComponent<Rigidbody>();
+            JumpsCount = MaxJumps;
+            RotID = 0f;
+            playerAnimator = GetComponent<Animator>();
+        }
+        else
+        {
+            Destroy(camera.transform.GetComponent<PostProcessLayer>());
+            Destroy(camera.GetComponent<Camera>());
+        }
         
     }
 
-    Quaternion TargerCameraRot, LastCameraRot;
-    bool isRotating;
+    
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetMouseButtonDown(1))
+        if (isLocalPlayer)
         {
-            Time.timeScale = 0.2f;
-        }
-        if (Input.GetMouseButtonUp(1))
-        {
-            Time.timeScale = 1f;
-        }
-        if (isRotating)
-        {
-            print("Rotating");
-            RotID+=Time.deltaTime*RotationSpeed;
-            camera.transform.rotation = Quaternion.Euler(camera.transform.rotation.eulerAngles.x, camera.transform.rotation.eulerAngles.y, Quaternion.Lerp(LastCameraRot,TargerCameraRot,RotID).eulerAngles.z);
-            if (RotID >= 1f)
+            if (Input.GetMouseButtonDown(1))
             {
-                isRotating = false;
-                RotID=0;
+                Time.timeScale = 0.2f;
             }
-        }
-        #region Rotation
-        float eulerX = (camera.transform.rotation.eulerAngles.x + -Input.GetAxis("Mouse Y") * sensivity) % 360;
-        float eulerY = (transform.rotation.eulerAngles.y + Input.GetAxis("Mouse X") * sensivity) % 360;
-        camera.transform.rotation = Quaternion.Euler(eulerX, eulerY, camera.transform.rotation.eulerAngles.z);
-        transform.rotation = Quaternion.Euler(0, eulerY, 0);
-        #endregion
-
-        #region Movement
-
-        float speed = StandartSpeed;
-
-        if (Input.GetKey(KeyCode.LeftShift))
-        {
-            
-            speed = StandartSpeed * 1.3f;
-        }
-
-        float HMove = Input.GetAxisRaw("Horizontal");
-        float VMove = Input.GetAxisRaw("Vertical");
-
-        if (PlayerState != States.WallRun)
-        {
-            float VerticalVelocity = rb.velocity.y;
-            rb.velocity = transform.forward * VMove * speed; 
-            rb.velocity+= transform.right * speed* HMove;
-            rb.velocity += transform.up * VerticalVelocity;
-            if (VMove > 0)
+            if (Input.GetMouseButtonUp(1))
             {
-
+                Time.timeScale = 1f;
             }
-            /*
-            transform.position += transform.forward * VMove * speed * Time.deltaTime;
-            transform.position += transform.right * HMove * speed * Time.deltaTime;*/
-        }
+            #region Rotation
+            float eulerX = (camera.transform.rotation.eulerAngles.x + -Input.GetAxis("Mouse Y") * sensivity) % 360;
+            float eulerY = (transform.rotation.eulerAngles.y + Input.GetAxis("Mouse X") * sensivity) % 360;
+            camera.transform.rotation = Quaternion.Euler(eulerX, eulerY, camera.transform.rotation.eulerAngles.z);
+            transform.rotation = Quaternion.Euler(0, eulerY, 0);
+            #endregion
 
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            
-            ChangeState(States.Fall);
-            rb.velocity+=transform.up * JumpForce;
-            print("Jump");
-            ReGenJumps();
+            #region Movement
 
+            float speed = StandartSpeed;
 
-        }
-
-        if (rb.velocity.y != 0 && Input.GetKeyDown(KeyCode.LeftControl))
-        {
-            if (PlayerState == States.WallRun)
+            if (Input.GetKey(KeyCode.LeftShift))
             {
+
+                speed = StandartSpeed * 1.3f;
+            }
+
+            float HMove = Input.GetAxisRaw("Horizontal");
+            float VMove = Input.GetAxisRaw("Vertical");
+
+            if (PlayerState != States.WallRun)
+            {
+                float VerticalVelocity = rb.velocity.y;
+                rb.velocity = transform.forward * VMove * speed;
+                rb.velocity += transform.right * speed * HMove;
+                rb.velocity += transform.up * VerticalVelocity;
+                if (VMove > 0)
+                {
+
+                }
+            }
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+
                 ChangeState(States.Fall);
+                rb.velocity += transform.up * JumpForce;
+                print("Jump");
+                ReGenJumps();
+
+
             }
-            
-            rb.AddForce(transform.up * -JumpForce * 2);
-            
-        }
 
-
-        #endregion
-        
-        #region WallWalk
-        
-        if (PlayerState != States.WallRun)
-        {
-            WRLineData.Clear();
-        }
-        else
-        {
-            if (WRLineData.Count <= 2)
+            if (rb.velocity.y != 0 && Input.GetKeyDown(KeyCode.LeftControl))
             {
-                print("Fall");
-                ChangeState(States.Fall);
-                rb.AddForce(6*Camera.main.transform.forward);
+                if (PlayerState == States.WallRun)
+                {
+                    ChangeState(States.Fall);
+                }
 
+                rb.AddForce(transform.up * -JumpForce * 2);
+
+            }
+
+
+            #endregion
+
+            #region WallWalk
+
+            if (PlayerState != States.WallRun)
+            {
+                WRLineData.Clear();
             }
             else
             {
-                IBetweenPoints += Time.deltaTime * WRSpeed;
-                Vector3 WRMoveDiraction = (WRLineData[1]-transform.position).normalized;
-                
-                transform.position = Vector3.Lerp(WRLineData[0], WRLineData[1], IBetweenPoints);
-                if (IBetweenPoints >= 1)
+                if (WRLineData.Count <= 2)
                 {
-                    IBetweenPoints = 0;
-                    WRLineData.RemoveAt(0);
-                }
-            }     
-        }
-        #endregion
-    }
+                    print("Fall");
+                    ChangeState(States.Fall);
+                    rb.AddForce(6 * Camera.main.transform.forward);
 
+                }
+                else
+                {
+                    IBetweenPoints += Time.deltaTime * WRSpeed;
+                    Vector3 WRMoveDiraction = (WRLineData[1] - transform.position).normalized;
+
+                    transform.position = Vector3.Lerp(WRLineData[0], WRLineData[1], IBetweenPoints);
+                    if (IBetweenPoints >= 1)
+                    {
+                        IBetweenPoints = 0;
+                        WRLineData.RemoveAt(0);
+                    }
+                }
+            }
+            #endregion
+        }
+    }
+    IEnumerator CameraRotaiting(float degrees)
+    {
+        Quaternion LastCameraRot = camera.transform.rotation;
+        Quaternion TargerCameraRot = Quaternion.EulerAngles(camera.transform.rotation.eulerAngles.x, camera.transform.rotation.eulerAngles.y, degrees);
+        float value = 0f;
+        print("Degr : " +degrees);
+        while(value<=1f)
+        {
+            value += Time.deltaTime * RotationSpeed;
+            Mathf.Max(value, 1);
+            yield return null;
+        }
+        print(camera.transform.rotation.eulerAngles.z);
+        yield return null;
+    }
     public void ChangeState(States state)
     {
         States LastState = PlayerState;
@@ -193,10 +204,8 @@ public class PlayerController : MonoBehaviour
     
     public void ChangeCameraRot(float Degrees)
     {
-        LastCameraRot = camera.transform.rotation;
-        TargerCameraRot = Quaternion.Euler(0, 0, Degrees);
-        isRotating = true;
-        
+        print("Degrees "+ Degrees);
+        StartCoroutine(CameraRotaiting(Degrees));
     }
     public void ReGenJumps()
     {

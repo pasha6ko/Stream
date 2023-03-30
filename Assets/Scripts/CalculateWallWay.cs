@@ -85,10 +85,9 @@ public class CalculateWallWay : MonoBehaviour
 
     void RaycastLine(Vector3 LinePosition, RaycastHit lastHit, int repeat, float Diraction)
     {
-        print(repeat);
         if(repeat > 0)
         {
-            print(repeat);
+            //print(repeat);
             RaycastHit HitForoward;
             if (Physics.Raycast(LinePosition, (lastHit.point + lastHit.normal) - LinePosition, out HitForoward, Width))
             {

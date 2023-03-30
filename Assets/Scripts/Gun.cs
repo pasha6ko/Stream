@@ -1,31 +1,35 @@
 using System;
 using System.Collections;
 using UnityEngine;
-
+using Mirror;
+using UnityEngine.Rendering.PostProcessing;
 public class Gun : MonoBehaviour
 {
+    [SerializeField]Transform mainCamera;
     [SerializeField] GunSettings settings;
     public bool autoReload;
     [SerializeField] ParticleSystem fireEffect;
     [Range(10f, 300f)][SerializeField] float rotationTime = 40f;
     [SerializeField] GameObject bullet,muzzle;
     [SerializeField] AnimationClip reloadAnim;
-    Animator playerAnimator;
+    [SerializeField] Animator playerAnimator;
    
-    private Camera mainCamera;
+    
     #region AnimationSet
     // Оружие
     
-    const string PLAYER_FIRE = "Gunplay";
+    const string PLAYER_FIRE = "ManFire";
+    const string PLAYER_RELOAD = "ManReload";
     //игрок
-    Animator gunAnimator;
-    const string GUN_RELOAD = "ReloadPlaceHolder";
+    [SerializeField] Animator gunAnimator;
+    const string GUN_RELOAD = "GunReload";
+    const string GUN_FIRE = "GunFire";
 
     #endregion
 
     private void Awake()
     {
-        mainCamera = Camera.main;
+        
     }
 
 
@@ -41,11 +45,11 @@ public class Gun : MonoBehaviour
     private Vector3 originalPosition;
     void Start()    
     {
-        playerAnimator = transform.parent.parent.GetComponent<Animator>();
-        gunAnimator = GetComponent<Animator>();
+        
+        //gunAnimator = GetComponent<Animator>();
         magazin = settings.magazineLimit;
         state = GunStates.Idle;
-        transform.LookAt(AimPoint.position);
+        //transform.LookAt(AimPoint.position);
         originalPosition = transform.localPosition ;
 
     }
@@ -74,7 +78,7 @@ public class Gun : MonoBehaviour
         {
             ChangeState(GunStates.Reload);
         }
-        Debug.DrawRay(muzzle.transform.position, muzzle.transform.forward,Color.red);
+        //Debug.DrawRay(muzzle.transform.position, muzzle.transform.forward,Color.red);
             
     }
     void ChangeState(GunStates state)
@@ -99,6 +103,7 @@ public class Gun : MonoBehaviour
     IEnumerator ReloadAnimation()
     {
         ChangeAnimationState(gunAnimator,GUN_RELOAD,true);
+        ChangeAnimationState(playerAnimator,PLAYER_RELOAD,true);
         magazin = settings.magazineLimit;
         print("reloaded");
         ChangeState(GunStates.Idle);
@@ -111,6 +116,8 @@ public class Gun : MonoBehaviour
         if (state == GunStates.Fire && fireTime >= lastFireTime + (1 / settings.fireSpeed) && magazin>0)
         {
             Fire();
+            ChangeAnimationState(gunAnimator,GUN_FIRE,true,settings.fireSpeed); 
+            ChangeAnimationState(playerAnimator, PLAYER_FIRE, true, settings.fireSpeed);
         }
         fireTime+= Time.deltaTime;
 
@@ -118,6 +125,7 @@ public class Gun : MonoBehaviour
     void Reload()
     {
         ChangeAnimationState(gunAnimator, GUN_RELOAD, true);
+        ChangeAnimationState(playerAnimator, PLAYER_RELOAD, true);
         magazin = settings.magazineLimit;
         print("reloaded");
         ChangeState(GunStates.Idle);
@@ -129,8 +137,10 @@ public class Gun : MonoBehaviour
     void Fire()
     {
         // Calculate bullet direction
-        Vector3 direction = muzzle.transform.forward;
-        direction = Quaternion.Euler(settings.recoilAngle, 0, 0) * direction;
+        Vector3 direction =mainCamera.transform.forward;
+       
+        
+        direction = Quaternion.Euler(settings.recoilAngle, UnityEngine.Random.RandomRange(-settings.FireRange, settings.FireRange) , 0) * direction;
 
         Ray ray = new Ray(mainCamera.transform.position, direction);
         RaycastHit hit;
@@ -138,14 +148,21 @@ public class Gun : MonoBehaviour
         if (Physics.Raycast(ray, out hit))
         {
 
-            GameObject bulletHole = Instantiate(settings.bulletHole[0], hit.point + hit.normal * 0.001f, Quaternion.LookRotation(hit.normal));// добавить разные вариации
+            GameObject bulletHole = Instantiate(settings.bulletHole[0], hit.point + hit.normal * 0.001f, Quaternion.LookRotation(hit.normal),hit.transform);// добавить разные вариации
             Destroy(bulletHole, 25);
+            bulletHole.transform.localScale = settings.bulletHole[0].transform.localScale;
+            Rigidbody cloneRb = hit.transform.GetComponent<Rigidbody>();
+            if (cloneRb!=null)
+            {
+                cloneRb.AddExplosionForce(settings.bulletSpeed*10f,hit.point,1f);
+            }
+            
         }
         ChangeAnimationState(playerAnimator,PLAYER_FIRE);
 
 
         StartCoroutine(Recoil(settings.recoilAngle, settings.recoilSpeed));
-        Debug.DrawRay(muzzle.transform.position,direction, Color.blue);
+
 
 
         magazin--;
@@ -171,13 +188,13 @@ public class Gun : MonoBehaviour
             yield return null;
         }
     }
-    void ChangeAnimationState(Animator animator,string newAnimation, bool ignoreCurrent = false)
+    void ChangeAnimationState(Animator animator,string newAnimation, bool ignoreCurrent = false,float speed =1f)
     {
         if (currentAnimaton == newAnimation && !ignoreCurrent)
         {
             return;
         }
-
+        animator.speed = speed;
         animator.Play(newAnimation);
         currentAnimaton = "Idle";
         print("Animation Played");
