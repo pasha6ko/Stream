@@ -6,6 +6,9 @@ using UnityEngine.Rendering.PostProcessing;
 
 public class PlayerController : NetworkBehaviour
 {
+
+    public int hp;
+    public Gun gun;
     [SerializeField]Transform camera;
     [Range(0.1f, 10f)] public float sensivity;
     [Range(0.1f ,1000f)] public float StandartSpeed,RotationSpeed;
@@ -18,6 +21,26 @@ public class PlayerController : NetworkBehaviour
     float IBetweenPoints;
     Rigidbody rb;
     [SerializeField] LayerMask _groundMask, _wallMask;
+    #region AnimationSet
+    //игрок
+    [SerializeField] Animator playerAnimator;
+    const string PLAYER_FIRE = "ManFire";
+    const string PLAYER_RELOAD = "ManReload";
+    //оружие
+    Animator gunAnimator;
+    const string GUN_RELOAD = "GunReload";
+    const string GUN_FIRE = "GunFire";
+    NetworkManager networkManager;
+    #endregion
+    public enum GunStates
+    {
+        Fire,
+        Idle,
+        Reload,
+        //void ChangeState(GunSettings)
+    }
+    GunStates gunState;
+
     public enum States
     {
         Stay,
@@ -27,22 +50,21 @@ public class PlayerController : NetworkBehaviour
         Fall
     }
     public States PlayerState;
-    float RotID;
-
-    Animator playerAnimator;
-    const string PLAYER_RUN = "Run";
     // Start is called before the first frame update
     void Start()
     {
+        hpCounter = GameObject.Find("Canvas/HP").transform.GetComponent<TMPro.TextMeshProUGUI>();
+
+        hp = 100;
         if (isLocalPlayer)
         {
+            networkManager = FindObjectOfType<NetworkManager>();
             PlayerState = States.Walk;
             Cursor.lockState = CursorLockMode.Locked;
-
+            gunState = GunStates.Idle;
             rb = GetComponent<Rigidbody>();
             JumpsCount = MaxJumps;
-            RotID = 0f;
-            playerAnimator = GetComponent<Animator>();
+            gunAnimator = gun.transform.GetComponent<Animator>();
         }
         else
         {
@@ -153,6 +175,30 @@ public class PlayerController : NetworkBehaviour
                 }
             }
             #endregion
+
+            #region GunControl
+            if (Input.GetMouseButtonDown(0) && gunState != GunStates.Reload)
+            {
+                ChangeGunState(GunStates.Fire);
+
+            }
+            if (Input.GetMouseButtonUp(0) && gunState != GunStates.Reload)
+            {
+                ChangeGunState(GunStates.Idle);
+            }
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                ChangeGunState(GunStates.Reload);
+            }
+            #endregion
+        }
+    }
+    TMPro.TextMeshProUGUI hpCounter;
+    private void FixedUpdate()
+    {
+        if (isLocalPlayer)
+        {
+            hpCounter.text = hp.ToString();
         }
     }
     IEnumerator CameraRotaiting(float degrees)
@@ -211,8 +257,69 @@ public class PlayerController : NetworkBehaviour
     {
         JumpsCount = MaxJumps;
     }
-    
-    
+    IEnumerator ReloadAnimation()
+    {
+        ChangeAnimationState(gunAnimator, GUN_RELOAD, true);
+        ChangeAnimationState(playerAnimator, PLAYER_RELOAD, true);
+        gun.magazin = gun.settings.magazineLimit;
+        print("reloaded");
+        ChangeGunState(GunStates.Idle);
+        yield return null;
+    }
+    float lastFireTime = 0;
+    public void ChangeGunState(GunStates state)
+    {
+        this.gunState = state;
+        //fireTime = 0;
+        switch (state)
+        {
+            case GunStates.Fire:
+                print("fire");
+                StartCoroutine(FireControle());
+                break;
+            case GunStates.Idle:
+                print("idle");
+                break;
+            case GunStates.Reload:
+                Reload();
+                print("reload");
+                break;
+        }
+    }
+    void Reload()
+    {
+        ChangeAnimationState(gunAnimator, GUN_RELOAD, true);
+        ChangeAnimationState(playerAnimator, PLAYER_RELOAD, true);
+        gun.Reload();
+        ChangeGunState(GunStates.Idle);
+    }
+    [SerializeField] GameObject pref;
+    IEnumerator FireControle()
+    {
+        while (Input.GetMouseButton(0))
+        {
+            gun.Fire();
+            Debug.Log("Fire");
+            GameObject clone = Instantiate(pref);
+            NetworkServer.Spawn(clone);
+            ChangeAnimationState(gunAnimator, GUN_FIRE, true, gun.settings.fireSpeed);
+            ChangeAnimationState(playerAnimator, PLAYER_FIRE, true, gun.settings.fireSpeed);
+            
+            yield return new WaitForSeconds(1/gun.settings.fireSpeed);
+        }
+    }
+    string currentAnimaton;
+    void ChangeAnimationState(Animator animator, string newAnimation, bool ignoreCurrent = false, float speed = 1f)
+    {
+        if (currentAnimaton == newAnimation && !ignoreCurrent)
+        {
+            return;
+        }
+        animator.speed = speed;
+        animator.Play(newAnimation);
+        currentAnimaton = "Idle";
+        print("Animation Played");
+    }
     private void OnCollisionEnter(Collision collision)
     {
         //print("on colison");

@@ -738,6 +738,8 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0.1
+  hp: 0
+  gun: {fileID: 3917742525828820546}
   camera: {fileID: 3917742524943462587}
   sensivity: 1
   StandartSpeed: 14
@@ -755,7 +757,10 @@ MonoBehaviour:
   _wallMask:
     serializedVersion: 2
     m_Bits: 64
+  playerAnimator: {fileID: 3917742525638412062}
   PlayerState: 0
+  hpCounter: {fileID: 0}
+  pref: {fileID: 6701701029845228027, guid: c2a64c6635c2a2a448a22b9672b2de99, type: 3}
 --- !u!114 &6939494482501111352
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2350,7 +2355,6 @@ MonoBehaviour:
   rotationTime: 150
   bullet: {fileID: 1410745271663448617, guid: f6c2ea20258ee7548b090cbe38f256c9, type: 3}
   muzzle: {fileID: 0}
-  reloadAnim: {fileID: 7400000, guid: c41ffbdbf76822448afd5ba0424eefa4, type: 2}
-  playerAnimator: {fileID: 3917742525638412062}
   gunAnimator: {fileID: 1985128558}
+  magazin: 0
   AimPoint: {fileID: 0}
