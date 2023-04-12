@@ -652,8 +652,6 @@ GameObject:
   - component: {fileID: 6939494482501111352}
   - component: {fileID: 4290489184583575206}
   - component: {fileID: 1148007753}
-  - component: {fileID: 65284402}
-  - component: {fileID: 65284403}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -742,7 +740,7 @@ MonoBehaviour:
   syncInterval: 0.1
   hp: 0
   gun: {fileID: 3917742525828820546}
-  mainCamera: {fileID: 3917742524943462587}
+  camera: {fileID: 3917742524943462587}
   sensivity: 1
   StandartSpeed: 14
   RotationSpeed: 3
@@ -760,17 +758,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   playerAnimator: {fileID: 3917742525638412062}
-  Hole: {fileID: 1540381238664559441, guid: 95318b177864d324590a598346c5682f, type: 3}
-  AimUI: {fileID: 0}
-  AimFOV: 10
-  Fov: 90
   PlayerState: 0
-  autoReload: 0
-  fireEffect: {fileID: 0}
-  rotationTime: 40
-  bullet: {fileID: 0}
-  muzzle: {fileID: 0}
-  magazin: 31
+  hpCounter: {fileID: 0}
   pref: {fileID: 6701701029845228027, guid: c2a64c6635c2a2a448a22b9672b2de99, type: 3}
 --- !u!114 &6939494482501111352
 MonoBehaviour:
@@ -835,40 +824,6 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &65284402
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3917742524821105186}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f6f3bf89aa97405989c802ba270f815, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  syncDirection: 0
-  syncMode: 0
-  syncInterval: 0.1
-  clientAuthority: 1
-  animator: {fileID: 3917742525638412062}
---- !u!114 &65284403
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3917742524821105186}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f6f3bf89aa97405989c802ba270f815, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  syncDirection: 0
-  syncMode: 0
-  syncInterval: 0.1
-  clientAuthority: 1
-  animator: {fileID: 1985128558}
 --- !u!1 &3917742524943462584
 GameObject:
   m_ObjectHideFlags: 0
@@ -2376,20 +2331,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d28845ccabb25745bfead4c561f48c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainCamera: {fileID: 0}
+  mainCamera: {fileID: 3917742524943462587}
   settings:
     name: "\u0427\u0422\u043E \u0442\u043E"
-    fireSpeed: 300
+    fireSpeed: 12
     bulletSpeed: 10
     bodyDamage: 0
     headDamage: 0
     coolingTime: 0
     reloadTime: 0
     switchTime: 0
-    FireRange: 0
+    FireRange: 1
     crouchFireRange: 0
-    recoilAngle: 1
-    recoilSpeed: 9
+    recoilAngle: 3
+    recoilSpeed: 8
     magazineLimit: 31
     Holding: 0
     AlternativeShooting: 0
@@ -2400,5 +2355,6 @@ MonoBehaviour:
   rotationTime: 150
   bullet: {fileID: 1410745271663448617, guid: f6c2ea20258ee7548b090cbe38f256c9, type: 3}
   muzzle: {fileID: 0}
-  magazin: 31
+  gunAnimator: {fileID: 1985128558}
+  magazin: 0
   AimPoint: {fileID: 0}

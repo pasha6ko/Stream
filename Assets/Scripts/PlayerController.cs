@@ -9,8 +9,7 @@ public class PlayerController : NetworkBehaviour
 
     public int hp;
     public Gun gun;
-    [SerializeField]Transform mainCamera;
-    Camera cam;
+    [SerializeField]Transform camera;
     [Range(0.1f, 10f)] public float sensivity;
     [Range(0.1f ,1000f)] public float StandartSpeed,RotationSpeed;
     [Range(0.1f, 2000f)] public float JumpForce;
@@ -32,15 +31,13 @@ public class PlayerController : NetworkBehaviour
     const string GUN_RELOAD = "GunReload";
     const string GUN_FIRE = "GunFire";
     NetworkManager networkManager;
-    [SerializeField] GameObject Hole;
-    [SerializeField] GameObject AimUI;
-    [SerializeField] int AimFOV, Fov;
     #endregion
     public enum GunStates
     {
         Fire,
         Idle,
         Reload,
+        //void ChangeState(GunSettings)
     }
     GunStates gunState;
 
@@ -53,15 +50,6 @@ public class PlayerController : NetworkBehaviour
         Fall
     }
     public States PlayerState;
-    #region GunParams
-    private Vector3 originalPosition;
-    public bool autoReload;
-    [SerializeField] ParticleSystem fireEffect;
-    [Range(10f, 300f)][SerializeField] float rotationTime = 40f;
-    [SerializeField] GameObject bullet, muzzle;
-
-    public int magazin;
-    #endregion
     // Start is called before the first frame update
     void Start()
     {
@@ -75,34 +63,36 @@ public class PlayerController : NetworkBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             gunState = GunStates.Idle;
             rb = GetComponent<Rigidbody>();
-            cam = Camera.main.GetComponent<Camera>();
             JumpsCount = MaxJumps;
             gunAnimator = gun.transform.GetComponent<Animator>();
-            AimUI = GameObject.Find("Canvas/Aim");
-            AimUI.SetActive(false);
         }
         else
         {
-            Destroy(mainCamera.transform.GetComponent<PostProcessLayer>());
-            Destroy(mainCamera.GetComponent<Camera>());
+            Destroy(camera.transform.GetComponent<PostProcessLayer>());
+            Destroy(camera.GetComponent<Camera>());
         }
-        magazin = gun.settings.magazineLimit;
-
-        originalPosition = transform.localPosition;
-
+        
     }
 
-    bool isAiming;
+    
 
     // Update is called once per frame
     void Update()
     {
         if (isLocalPlayer)
         {
+            if (Input.GetMouseButtonDown(1))
+            {
+                Time.timeScale = 0.2f;
+            }
+            if (Input.GetMouseButtonUp(1))
+            {
+                Time.timeScale = 1f;
+            }
             #region Rotation
-            float eulerX = (mainCamera.transform.rotation.eulerAngles.x + -Input.GetAxis("Mouse Y") * sensivity) % 360;
+            float eulerX = (camera.transform.rotation.eulerAngles.x + -Input.GetAxis("Mouse Y") * sensivity) % 360;
             float eulerY = (transform.rotation.eulerAngles.y + Input.GetAxis("Mouse X") * sensivity) % 360;
-            mainCamera.transform.rotation = Quaternion.Euler(eulerX, eulerY, mainCamera.transform.rotation.eulerAngles.z);
+            camera.transform.rotation = Quaternion.Euler(eulerX, eulerY, camera.transform.rotation.eulerAngles.z);
             transform.rotation = Quaternion.Euler(0, eulerY, 0);
             #endregion
 
@@ -200,18 +190,6 @@ public class PlayerController : NetworkBehaviour
             {
                 ChangeGunState(GunStates.Reload);
             }
-            if (Input.GetMouseButton(1) && gunState != GunStates.Reload && !isAiming)
-            {
-                AimUI.SetActive(true);
-                cam.fieldOfView = AimFOV;
-                isAiming = true;
-            }
-            else if (Input.GetMouseButtonUp(1))
-            {
-                AimUI.SetActive(false);
-                cam.fieldOfView = Fov;
-                isAiming=false;
-            }
             #endregion
         }
     }
@@ -225,8 +203,8 @@ public class PlayerController : NetworkBehaviour
     }
     IEnumerator CameraRotaiting(float degrees)
     {
-        Quaternion LastCameraRot = mainCamera.transform.rotation;
-        Quaternion TargerCameraRot = Quaternion.EulerAngles(mainCamera.transform.rotation.eulerAngles.x, mainCamera.transform.rotation.eulerAngles.y, degrees);
+        Quaternion LastCameraRot = camera.transform.rotation;
+        Quaternion TargerCameraRot = Quaternion.EulerAngles(camera.transform.rotation.eulerAngles.x, camera.transform.rotation.eulerAngles.y, degrees);
         float value = 0f;
         print("Degr : " +degrees);
         while(value<=1f)
@@ -235,10 +213,10 @@ public class PlayerController : NetworkBehaviour
             Mathf.Max(value, 1);
             yield return null;
         }
-        print(mainCamera.transform.rotation.eulerAngles.z);
+        print(camera.transform.rotation.eulerAngles.z);
         yield return null;
     }
-    [Client]public void ChangeState(States state)
+    public void ChangeState(States state)
     {
         States LastState = PlayerState;
         PlayerState = state;
@@ -270,7 +248,7 @@ public class PlayerController : NetworkBehaviour
         }
     }
     
-    [Client]public void ChangeCameraRot(float Degrees)
+    public void ChangeCameraRot(float Degrees)
     {
         print("Degrees "+ Degrees);
         StartCoroutine(CameraRotaiting(Degrees));
@@ -279,7 +257,7 @@ public class PlayerController : NetworkBehaviour
     {
         JumpsCount = MaxJumps;
     }
-    [Client]IEnumerator ReloadAnimation()
+    IEnumerator ReloadAnimation()
     {
         ChangeAnimationState(gunAnimator, GUN_RELOAD, true);
         ChangeAnimationState(playerAnimator, PLAYER_RELOAD, true);
@@ -289,9 +267,10 @@ public class PlayerController : NetworkBehaviour
         yield return null;
     }
     float lastFireTime = 0;
-    [Client] public void ChangeGunState(GunStates state)
+    public void ChangeGunState(GunStates state)
     {
         this.gunState = state;
+        //fireTime = 0;
         switch (state)
         {
             case GunStates.Fire:
@@ -315,21 +294,20 @@ public class PlayerController : NetworkBehaviour
         ChangeGunState(GunStates.Idle);
     }
     [SerializeField] GameObject pref;
-    
-    private IEnumerator FireControle()
+    IEnumerator FireControle()
     {
         while (Input.GetMouseButton(0))
         {
-            ClientFire();
+            gun.Fire();
             Debug.Log("Fire");
-            
+            GameObject clone = Instantiate(pref);
+            NetworkServer.Spawn(clone);
             ChangeAnimationState(gunAnimator, GUN_FIRE, true, gun.settings.fireSpeed);
             ChangeAnimationState(playerAnimator, PLAYER_FIRE, true, gun.settings.fireSpeed);
             
             yield return new WaitForSeconds(1/gun.settings.fireSpeed);
         }
     }
-    
     string currentAnimaton;
     void ChangeAnimationState(Animator animator, string newAnimation, bool ignoreCurrent = false, float speed = 1f)
     {
@@ -342,7 +320,7 @@ public class PlayerController : NetworkBehaviour
         currentAnimaton = "Idle";
         print("Animation Played");
     }
-    [Client]private void OnCollisionEnter(Collision collision)
+    private void OnCollisionEnter(Collision collision)
     {
         //print("on colison");
         if (Mathf.Pow(2, collision.collider.gameObject.layer) == _groundMask.value)
@@ -354,62 +332,4 @@ public class PlayerController : NetworkBehaviour
             
         }
     }
-    #region GunDunctions
-    [Client]
-    void ClientFire()
-    {
-        Vector3 direction = mainCamera.transform.forward;
-        direction = Quaternion.Euler(gun.settings.recoilAngle, UnityEngine.Random.Range(-gun.settings.FireRange, gun.settings.FireRange), 0) * direction;
-        Ray ray = new Ray(mainCamera.transform.position, direction);
-        Debug.DrawRay(mainCamera.transform.position, direction, Color.green);
-       // Debug.LogError("Wait");
-        Fire(ray);
-        StartCoroutine(Recoil(gun.settings.recoilAngle, gun.settings.recoilSpeed));
-        magazin--;
-    }
-    [Command]
-    private void Fire(Ray ray)
-    {
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit))
-        {
-            GameObject bulletHole = Instantiate(Hole, hit.point + hit.normal * 0.001f, Quaternion.LookRotation(hit.normal)) as GameObject ;// добавить разные вариации
-            Destroy(bulletHole, 25);
-            NetworkServer.Spawn(bulletHole);
-            if (hit.transform.GetComponent<PlayerController>() != null)
-            {
-                PlayerController player = hit.transform.GetComponent<PlayerController>();
-                GetDamage(player, 10);
-                Debug.Log("Hit : "+ player.hp);
-            }
-            Rigidbody cloneRb = hit.transform.GetComponent<Rigidbody>();
-            if (cloneRb != null)
-            {
-                cloneRb.AddExplosionForce(gun.settings.bulletSpeed * 10f, hit.point, 1f);
-            }
-            NetworkServer.SpawnObjects();
-        } 
-    }
-    [ClientRpc]
-    void GetDamage(PlayerController player, int damage)
-    {
-        player.hp -= damage;
-    }
-
-    float currentAngle;
-    private IEnumerator Recoil(float angle, float speed)
-    {
-        currentAngle -= angle;
-        mainCamera.transform.localRotation = Quaternion.Euler(mainCamera.transform.localRotation.eulerAngles.x + currentAngle, 0, 0);
-        while (currentAngle < 0 )
-        {
-
-            currentAngle += speed * Time.deltaTime;
-            currentAngle = Mathf.Min(currentAngle, 0);
-            mainCamera.transform.localRotation = Quaternion.Euler(mainCamera.transform.localRotation.eulerAngles.x + speed * Time.deltaTime, 0, 0);
-            yield return null;
-        }
-    }
-    #endregion
-
 }

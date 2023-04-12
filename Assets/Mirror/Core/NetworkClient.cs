@@ -1130,6 +1130,7 @@ namespace Mirror
                 //Debug.Log($"Client spawn handler instantiating [netId{message.netId} asset ID:{message.assetId} pos:{message.position} rotation:{message.rotation}]");
                 return obj.GetComponent<NetworkIdentity>();
             }
+
             Debug.LogError($"Failed to spawn server object, did you forget to add it to the NetworkManager? assetId={message.assetId} netId={message.netId}");
             return null;
         }
